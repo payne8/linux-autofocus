@@ -1,0 +1,62 @@
+package main
+
+import (
+	"fmt"
+	"github.com/google/gousb"
+)
+
+func main() {
+	ctx := gousb.NewContext()
+	defer ctx.Close()
+
+	// Find the webcam device
+	webcamDesc := gousb.DeviceDesc{
+		Vendor:  0x1234, // Replace with your webcam's vendor ID
+		Product: 0x5678, // Replace with your webcam's product ID
+	}
+	webcam, err := ctx.OpenDeviceWithVIDPID(webcamDesc.Vendor, webcamDesc.Product)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to open webcam: %v", err))
+	}
+	defer webcam.Close()
+
+	// Find the autofocus control interface
+	wcConfig, err := webcam.Config(1)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get webcam config: %v", err))
+	}
+	autofocusIntf, err := wcConfig.Interface(2, 0)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to find autofocus interface: %v", err))
+	}
+
+	// Set the autofocus control to on or off
+	autofocusValue := uint16(0x0000) // Replace with 0x0001 to turn autofocus on
+	err = autofocusIntf.Control(
+		gousb.ControlOut|gousb.ControlClass|gousb.ControlInterface,
+		0x01, // SET_CUR control request
+		autofocusValue,
+		0x0200, // wIndex = 2 (autofocus control)
+		nil,
+	)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to set autofocus value: %v", err))
+	}
+
+	fmt.Println("Autofocus set to off")
+}
+
+//// Helper function to find the autofocus control interface
+//func findAutofocusInterface(config *gousb.Config) (intfNum int, altSettingNum int, err error) {
+//	for _, iface := range config.Desc.Interfaces {
+//		for _, alt := range iface.AltSettings {
+//			for _, endpoint := range alt.Endpoints {
+//				if endpoint.Desc.EndpointAddress() == 0x81 && endpoint.Desc.TransferType() == gousb.TransferTypeInterrupt {
+//					// This is the autofocus control interface
+//					return iface.Number, alt.Number, nil
+//				}
+//			}
+//		}
+//	}
+//	return 0, 0, fmt.Errorf("Failed to find autofocus interface")
+//}
